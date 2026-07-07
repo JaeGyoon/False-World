@@ -30,6 +30,6 @@ public class SceneLoaderManager : ManagerBase<SceneLoaderManager>
         }
 
         isLoading = false;
-
+        Debug.Log($"씬 이동 완료: {scene.ToString()}");
     }
 }

@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "HeroDatabase", menuName = "Scriptable Objects/HeroDatabase")]
-public class HeroDatabase : ScriptableObject
+public class HeroDatabase : DatabaseBase
 {
     [SerializeField] private List<HeroDataSO> heros = new List<HeroDataSO>();
 
     private Dictionary<EntityID, HeroDataSO> heroDict;
 
-    public void Initialize()
+    public override void Initialize()
     {
         heroDict = new Dictionary<EntityID, HeroDataSO>();
 
@@ -28,6 +28,8 @@ public class HeroDatabase : ScriptableObject
 
             heroDict.Add(so.ID, so);
         }
+
+        Debug.Log("Hero Database Initialize 완료");
     }
 
     public HeroDataSO Get(EntityID id)

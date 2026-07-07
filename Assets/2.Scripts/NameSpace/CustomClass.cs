@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -250,8 +249,140 @@ namespace FalseWorld
         public float AttackRange => attackRange;
         public float PatrolRange => patrolRange;
         public float ChaseDistance => chaseDistance;
+    }
 
+    public abstract class Entity<TData> : EntityBase where TData : EntityData
+    {
+        public TData Data { get; protected set; }
 
+        public virtual void Initialize(TData data) 
+        {
+            Data = data;
+        }
+    }
+
+    public abstract class Character<TData> : Entity<TData> where TData : CharacterData
+    {
+
+    }
+
+    public sealed class Hero : Character<HeroDataSO>
+    {
+        public override void Release()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public sealed class Enemy : Character<EnemyDataSO>
+    {
+        public override void Release()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    [Serializable]
+    public class StatModifier
+    {
+        public ModifierType type;
+
+        public float value;
+
+        public object source;
+
+        public int priority;
+    }
+
+    [Serializable]
+    public sealed class Stat
+    {
+        [SerializeField] private StatType type;
+        [SerializeField] private float value;
+
+        public StatType Type => type;
+        public float Value => value;
+    }
+
+    public sealed class StatValue
+    {
+        private readonly List<StatModifier> modifiers = new List<StatModifier> ();
+
+        public float BaseValue { get; private set; }
+        public float FinalValue { get; private set; }
+
+        public StatValue(float  baseValue)
+        {
+            BaseValue = baseValue;
+
+            Recalculate();
+        }
+
+        private void Recalculate()
+        {
+            float value = BaseValue;
+
+            // Flat 적용 후 Percent 적용
+            foreach(StatModifier modifier in modifiers)
+            {
+                if (modifier.type == ModifierType.Flat)
+                {
+                    value += modifier.value;
+                }
+            }
+
+            foreach (StatModifier modifier in modifiers)
+            {
+                if (modifier.type == ModifierType.Percent)
+                {
+                    value *= (1f + modifier.value);
+                }
+            }
+
+            FinalValue = value;
+        }
+
+        public void AddModifier(StatModifier modifier)
+        {
+            modifiers.Add(modifier);
+
+            Recalculate();
+        }
+
+        public void RemoveModifier(object source)
+        {
+            modifiers.RemoveAll( x => x.source == source);
+
+            Recalculate();
+        }
+    }
+
+    public sealed class RuntimeStat
+    {
+        private readonly Dictionary<StatType, StatValue> stats = new Dictionary<StatType, StatValue> ();
+
+        public RuntimeStat(StatDataSO data)
+        {
+            foreach(Stat stat in data.Stats)
+            {
+                stats.Add(stat.Type, new StatValue(stat.Value));
+            }
+        }
+
+        public float GetValue(StatType type)
+        {
+            return stats[type].FinalValue;
+        }
+
+        public void AddModifier(StatType type, StatModifier modifier)
+        {
+            stats[type].AddModifier(modifier);
+        }
+
+        public void RemoveModifier(StatType type, object source)
+        {
+            stats[type].RemoveModifier(source);
+        }
     }
 
 }

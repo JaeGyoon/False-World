@@ -24,13 +24,17 @@ public class Bootstrapper : MonoBehaviour
         Debug.Log("Bootstrap Start!");
 
         await SaveManager.Instance.Initialize();
+        
+        
 
-        //await Addressables.InitializeAsync().Task;
+        await DatabaseManager.Instance.Initialize();
 
-        Debug.Log("Addressable Assets Init");
+       
 
         await GameManager.Instance.Initialize();
 
         Debug.Log("Bootstrap End");
+
+
     }
 }

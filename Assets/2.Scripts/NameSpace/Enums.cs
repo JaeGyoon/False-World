@@ -1,6 +1,4 @@
-﻿using UnityEngine;
-
-namespace FalseWorld
+﻿namespace FalseWorld
 {
     public enum SceneName
     {
@@ -33,7 +31,8 @@ namespace FalseWorld
     {
         None = 0,
 
-        Player = 1,
+        Warrior = 1001,
+        Pyromancer = 1002,
 
         Slime = 2001,
         SpinySnail = 2002,
@@ -65,6 +64,36 @@ namespace FalseWorld
 
         Alert = 3,
     }
+
+    public enum ModifierType
+    {
+        Flat = 0,
+        Percent = 1,
+        //Override = 2,
+    }
+
+    public enum StatType
+    {
+        MaxHealth = 0,
+
+        AttackDamage = 1,
+        MagicDamage = 2,
+
+        Defence = 3,
+        Resistance = 4,
+
+        AttackSpeed = 5,
+        MoveSpeed = 6,
+
+        CriticalChance = 7,
+        CriticalDamage = 8,
+
+        CooldownReduction = 9,
+
+        LifeSteal = 10,
+
+    }
 }
+    
 
 

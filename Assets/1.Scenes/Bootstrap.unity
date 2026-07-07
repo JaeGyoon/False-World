@@ -163,8 +163,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e953ba8a8dba82542ae4f91c5b298d4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  data:
-    selectedHeroID: 
 --- !u!1 &322645532
 GameObject:
   m_ObjectHideFlags: 0
@@ -467,6 +465,52 @@ MonoBehaviour:
   m_LightCookieSize: {x: 1, y: 1}
   m_LightCookieOffset: {x: 0, y: 0}
   m_SoftShadowQuality: 1
+--- !u!1 &759128192
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 759128193}
+  - component: {fileID: 759128194}
+  m_Layer: 0
+  m_Name: DatabaseManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &759128193
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 759128192}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 850227559}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &759128194
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 759128192}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cedae38c5b8be2c44b4c55a47230e27b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  databases:
+  - {fileID: 11400000, guid: 9f30d6c940a1a2846878c532c35ff782, type: 2}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -562,6 +606,7 @@ Transform:
   - {fileID: 261658089}
   - {fileID: 2053805266}
   - {fileID: 1310028967}
+  - {fileID: 759128193}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1310028966
@@ -608,7 +653,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8d405d82b69ca9469284de3a75ed6cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  database: {fileID: 0}
 --- !u!1 &1839299940
 GameObject:
   m_ObjectHideFlags: 0
