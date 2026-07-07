@@ -225,7 +225,34 @@ namespace FalseWorld
 
     }
 
+    // 아직 구현하진 않고 명시
+    [Serializable]
+    public class SkillData
+    {
 
+    }
+
+    [Serializable]
+    public class EnemyAISettings
+    {
+        [SerializeField] private AIBehaviorType behaviorType;
+        [SerializeField] private SpawnState spawnState;
+
+        [SerializeField] private float detectRange = 10f;
+        [SerializeField] private float attackRange = 2f;
+        [SerializeField] private float patrolRange = 5f;
+        [SerializeField] private float chaseDistance = 12f;
+
+        public AIBehaviorType BehaviorType => behaviorType;
+        public SpawnState SpawnState => spawnState;
+
+        public float DetectRange => detectRange;
+        public float AttackRange => attackRange;
+        public float PatrolRange => patrolRange;
+        public float ChaseDistance => chaseDistance;
+
+
+    }
 
 }
 
