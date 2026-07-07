@@ -1,10 +1,11 @@
-﻿using UnityEngine;
-using System;
-using System.IO;
+﻿using System;
 using System.Collections.Generic;
-using UnityEngine.ResourceManagement.AsyncOperations;
+using System.ComponentModel;
+using System.IO;
 using System.Threading.Tasks;
+using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 
 namespace FalseWorld
@@ -48,72 +49,152 @@ namespace FalseWorld
         public const string EffectLabel = "Effects";
     }
 
-
-
-
-    // sealed = 상속 금지 키워드
-    public sealed class AssetHandle<T>
+    public sealed class AssetHandle<T> where T : UnityEngine.Object
     {
-        internal AsyncOperationHandle<T> handle;
+        public string RuntimeKey { get; }
 
-        public T Asset => handle.Result;
+        public T Asset { get; }
 
-        internal AssetHandle(AsyncOperationHandle<T> handle)
+        internal AssetHandle(string runtimeKey, T asset)
         {
-            this.handle = handle;
+            if (string.IsNullOrWhiteSpace(runtimeKey))
+            {
+                Debug.Log($"RuntimeKey 오류 : {runtimeKey}");
+            }
+
+            if (asset == null)
+            {
+                Debug.Log($"Asset 오류 : {asset.name}");
+            }                
+
+            RuntimeKey = runtimeKey;
+            Asset = asset;
         }
     }
 
-    public class AddressableLoader
+    internal sealed class CacheEntry
     {
-        public async Task<AssetHandle<T>> LoadAsync<T>(AssetReference reference)
+        public string RuntimeKey { get; }
+
+        public AsyncOperationHandle Handle { get; }
+
+        public Type AssetType { get; }
+
+        public int ReferenceCount { get; private set; }
+
+        public bool IsReleased { get; private set; }
+
+        public CacheEntry(string runtimeKey, AsyncOperationHandle handle, Type assetType)
         {
-            var operation = reference.LoadAssetAsync<T>();
+            if (string.IsNullOrWhiteSpace(runtimeKey))
+            {
+                Debug.Log($"RuntimeKey 는 비어있을수 없음 : {runtimeKey}");
+            }
+
+            RuntimeKey = runtimeKey;
+            Handle = handle;
+            AssetType = assetType;
+
+            ReferenceCount = 1;
+            IsReleased = false;
+        }
+
+        public void Retain()
+        {
+            ReferenceCount++;
+        }
+
+        public bool ReleaseReference()
+        {
+            ReferenceCount--;
+
+            return (ReferenceCount <= 0);
+        }
+
+        public void MarkReleased()
+        {
+            IsReleased = true;
+        }
+
+        public T GetAsset<T>() where T : UnityEngine.Object
+        {
+            return Handle.Result as T;
+        }
+    }
+
+    public sealed class AddressableLoader
+    {
+        private readonly Dictionary<string, CacheEntry> cacheEntry = new Dictionary<string, CacheEntry>();
+
+        public int CacheCount => cacheEntry.Count;
+
+        public async Task<AssetHandle<T>> LoadAsync<T>(AssetReference reference) where T : UnityEngine.Object
+        {
+            if ( reference == null)
+            {
+                Debug.Log($"reference : NULL");
+            }
+
+            string runtimeKey = reference.RuntimeKey.ToString();
+
+            if(cacheEntry.TryGetValue(runtimeKey, out CacheEntry entry))
+            {
+                if ( entry.AssetType != typeof(T))
+                {
+                    Debug.Log($"AssetType이 서로 다름! {entry.AssetType} : {typeof(T)}");
+                }
+
+                entry.Retain();
+
+                return new AssetHandle<T>(runtimeKey, entry.GetAsset<T>());
+            }
+
+            var operation = reference.LoadAssetAsync<T>(); 
 
             await operation.Task;
 
-            return new AssetHandle<T>(operation);
-        }
-
-        public void Release<T> (AssetHandle<T> assetHandle)
-        {
-            Addressables.Release(assetHandle.handle);
-        }
-
-    }
-
-    internal class AssetCache
-    {
-        private readonly Dictionary<object, object> cache = new Dictionary<object, object>();
-
-        public bool TryGet<T>(object key, out AssetHandle<T> handle)
-        {
-            if ( cache.TryGetValue(key, out var value))
+            if ( operation.Status != AsyncOperationStatus.Succeeded)
             {
-                handle = value as AssetHandle<T>;
-
-                return handle != null;
+                Debug.Log($"에셋 로드 실패 {reference.RuntimeKey}");
             }
 
-            handle = null;
+            CacheEntry cache = new CacheEntry(runtimeKey, operation, typeof(T));
 
-            return false;
+            cacheEntry.Add(runtimeKey, cache);
+
+            return new AssetHandle<T>(runtimeKey, operation.Result);
         }
 
-        public void Add<T>(object key, AssetHandle<T> handle)
+        public void Release<T>(AssetHandle<T> handle) where T : UnityEngine.Object
         {
-            // cache.Add(key,handle) 과 같은 기능
-            cache[key] = handle;
+            if (handle == null)
+            {
+                return;
+            }
+
+            if (cacheEntry.TryGetValue(handle.RuntimeKey, out CacheEntry entry) == false)
+            {
+                return;
+            }
+
+            if (entry.ReleaseReference() == false)
+            {
+                return;
+            }
+
+            if ( entry.IsReleased == false)
+            {
+                Addressables.Release(entry.Handle);
+
+                entry.MarkReleased();
+            }
+
+            cacheEntry.Remove(handle.RuntimeKey);
         }
 
-        public void Remove(object key)
+        public bool IsLoaded(string runtimeKey)
         {
-            cache.Remove(key);
-        }
-
-        public void Clear()
-        {
-            cache.Clear();
+            return cacheEntry.ContainsKey(runtimeKey);
         }
     }
 }
