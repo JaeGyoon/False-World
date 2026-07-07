@@ -197,5 +197,35 @@ namespace FalseWorld
             return cacheEntry.ContainsKey(runtimeKey);
         }
     }
+
+    [Serializable]
+    public class StatData
+    {
+        [Header("Health")]
+        [SerializeField] private float maxHealth = 100f;
+
+        [Header("Combat")]
+        [SerializeField] private float attackDamage = 10f;
+        [SerializeField] private float defense = 0f;
+        [SerializeField] private float attackSpeed = 1f;
+        [SerializeField] private float criticalChance = 5f;
+        [SerializeField] private float criticalDamage = 150f;
+
+        [Header("Movement")]
+        [SerializeField] private float moveSpeed = 5f;
+
+        // 외부 수정을 막기 위해 읽기만 가능한 데이터
+        public float MaxHealth => maxHealth;
+        public float AttackDamage => attackDamage;
+        public float Defense => defense;
+        public float AttackSpeed => attackSpeed;
+        public float CriticalChance => criticalChance;
+        public float CriticalDamage => criticalDamage;
+        public float MoveSpeed => moveSpeed;
+
+    }
+
+
+
 }
 
