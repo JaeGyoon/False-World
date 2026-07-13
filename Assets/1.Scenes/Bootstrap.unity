@@ -753,6 +753,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Pyromancer
       objectReference: {fileID: 0}
+    - target: {fileID: 1648613117674228038, guid: f42e25f2a849fbe4987ee0a7b0bf39fb, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8943313655973923371, guid: f42e25f2a849fbe4987ee0a7b0bf39fb, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

@@ -68,8 +68,8 @@
     public enum ModifierType
     {
         Flat = 0,
-        Percent = 1,
-        //Override = 2,
+        Multiply = 1,
+        Override = 2,
     }
 
     public enum StatType
@@ -91,7 +91,19 @@
         CooldownReduction = 9,
 
         LifeSteal = 10,
+    }
 
+    public enum StatModifierOrder
+    {
+        Equipment = 100,
+
+        Passive = 200,
+
+        Buff = 300,
+
+        Debuff = 400,
+
+        Override = 1000
     }
 }
     

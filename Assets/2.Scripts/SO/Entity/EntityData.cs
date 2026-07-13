@@ -12,11 +12,11 @@ public class EntityData : DataAsset
     [Header("Prefab")]
     [SerializeField] private AssetReferenceGameObject prefab;
 
-    [Header("Stats")]
-    [SerializeField] private StatData stats = new StatData();
+    /*[Header("Stats")]
+    [SerializeField] private StatData stats = new StatData();*/
 
     public EntityID ID => id;
     public EntityType Type => type;
     public AssetReferenceGameObject Prefab => prefab;
-    public StatData Stats => stats;
+    /*public StatData Stats => stats;*/
 }

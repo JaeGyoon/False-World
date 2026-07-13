@@ -5,10 +5,11 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using static UnityEngine.Rendering.DebugUI;
 
 
 namespace FalseWorld
-{
+{        
     [Serializable]
     public class SaveData
     {
@@ -197,33 +198,6 @@ namespace FalseWorld
         }
     }
 
-    [Serializable]
-    public class StatData
-    {
-        [Header("Health")]
-        [SerializeField] private float maxHealth = 100f;
-
-        [Header("Combat")]
-        [SerializeField] private float attackDamage = 10f;
-        [SerializeField] private float defense = 0f;
-        [SerializeField] private float attackSpeed = 1f;
-        [SerializeField] private float criticalChance = 5f;
-        [SerializeField] private float criticalDamage = 150f;
-
-        [Header("Movement")]
-        [SerializeField] private float moveSpeed = 5f;
-
-        // 외부 수정을 막기 위해 읽기만 가능한 데이터
-        public float MaxHealth => maxHealth;
-        public float AttackDamage => attackDamage;
-        public float Defense => defense;
-        public float AttackSpeed => attackSpeed;
-        public float CriticalChance => criticalChance;
-        public float CriticalDamage => criticalDamage;
-        public float MoveSpeed => moveSpeed;
-
-    }
-
     // 아직 구현하진 않고 명시
     [Serializable]
     public class SkillData
@@ -283,78 +257,152 @@ namespace FalseWorld
     }
 
     [Serializable]
-    public class StatModifier
-    {
-        public ModifierType type;
-
-        public float value;
-
-        public object source;
-
-        public int priority;
-    }
-
-    [Serializable]
     public sealed class Stat
     {
         [SerializeField] private StatType type;
-        [SerializeField] private float value;
+
+        [SerializeField] private float baseValue;
 
         public StatType Type => type;
-        public float Value => value;
+        public float BaseValue => baseValue;
+    }
+
+    public abstract class StatModifierBase : IStatModifier
+    {
+        public StatModifierOrder Order { get; }
+        public IStatModifierSource Source { get; }
+
+        public float Value { get; }
+
+        protected StatModifierBase(float value, StatModifierOrder order, IStatModifierSource source)
+        {
+            Value = value;
+            Order = order;
+            Source = source;
+        }
+
+        public abstract float StatCalculate(float currentValue);
+    }
+
+    public sealed class AddModifier : StatModifierBase
+    {
+        public AddModifier(float value, StatModifierOrder order, IStatModifierSource source) : base(value, order, source)
+        {
+
+        }
+
+        public override float StatCalculate(float currentValue)
+        {
+            return currentValue + Value;
+        }
+    }
+
+    public sealed class MultiplyModifier : StatModifierBase
+    {
+
+        public MultiplyModifier(float value, StatModifierOrder order, IStatModifierSource source) : base(value, order, source)
+        {
+
+        }
+
+        public override float StatCalculate(float currentValue)
+        {
+            return currentValue * Value;
+        }
+    }
+
+    public sealed class OverrideModifier : StatModifierBase
+    {
+        public OverrideModifier(float value, StatModifierOrder order, IStatModifierSource source) : base(value, order, source)
+        {
+
+        }
+
+        public override float StatCalculate(float currentValue)
+        {
+            return Value;
+        }
     }
 
     public sealed class StatValue
     {
-        private readonly List<StatModifier> modifiers = new List<StatModifier> ();
+        private readonly List<IStatModifier> modifiers = new List<IStatModifier> ();
+
+        private bool isDirty = true;
+
+        private float cachedValue;
 
         public float BaseValue { get; private set; }
-        public float FinalValue { get; private set; }
+        public float FinalValue
+        {
+            get
+            {
+                if (isDirty)
+                {
+                    Recalculate();
+                }
 
-        public StatValue(float  baseValue)
+                return cachedValue;
+            }
+        }
+
+        public StatValue(float baseValue)
         {
             BaseValue = baseValue;
 
-            Recalculate();
-        }
+            cachedValue = baseValue;
+        }   
 
         private void Recalculate()
         {
             float value = BaseValue;
 
             // Flat 적용 후 Percent 적용
-            foreach(StatModifier modifier in modifiers)
+            foreach(IStatModifier modifier in modifiers)
             {
-                if (modifier.type == ModifierType.Flat)
-                {
-                    value += modifier.value;
-                }
+                value = modifier.StatCalculate(value);                
             }
 
-            foreach (StatModifier modifier in modifiers)
-            {
-                if (modifier.type == ModifierType.Percent)
-                {
-                    value *= (1f + modifier.value);
-                }
-            }
+            cachedValue = value;
 
-            FinalValue = value;
+            isDirty = false;
         }
 
-        public void AddModifier(StatModifier modifier)
+        public void SetBaseValue(float value)
+        {
+            BaseValue = value;
+            isDirty = true;
+        }
+
+        public void AddModifier(IStatModifier modifier)
         {
             modifiers.Add(modifier);
 
-            Recalculate();
+            modifiers.Sort(CompareModifier);
+
+
+            isDirty = true;
         }
 
-        public void RemoveModifier(object source)
+        public void RemoveModifier(IStatModifierSource source)
         {
-            modifiers.RemoveAll( x => x.source == source);
+            modifiers.RemoveAll( x => x.Source == source);
 
-            Recalculate();
+            isDirty = true;
         }
+
+        public void ClearModifiers()
+        {
+            modifiers.Clear();
+
+            isDirty = true;
+        }
+
+        private static int CompareModifier(IStatModifier left, IStatModifier right)
+        {
+            return left.Order.CompareTo(right.Order);
+        }
+
     }
 
     public sealed class RuntimeStat
@@ -363,25 +411,86 @@ namespace FalseWorld
 
         public RuntimeStat(StatDataSO data)
         {
+            if ( data == null)
+            {
+                Debug.Log("StatDataSO가 null 입니다. 확인 요망");
+            }
+
             foreach(Stat stat in data.Stats)
             {
-                stats.Add(stat.Type, new StatValue(stat.Value));
+                if ( stats.ContainsKey(stat.Type) )
+                {
+                    Debug.Log("스탯 타입 중복 오류");
+                }
+
+                stats.Add(stat.Type, new StatValue(stat.BaseValue));
             }
         }
 
-        public float GetValue(StatType type)
+        public StatValue GetStat(StatType statType)
         {
-            return stats[type].FinalValue;
+            if ( stats.TryGetValue(statType, out StatValue statValue) )
+            {
+                return statValue;
+            }
+            else
+            {
+                Debug.Log("없는 스탯 타입?");
+                return null;
+            }
         }
 
-        public void AddModifier(StatType type, StatModifier modifier)
+        public float GetValue(StatType statType)
         {
-            stats[type].AddModifier(modifier);
+            return GetStat(statType).FinalValue;
         }
 
-        public void RemoveModifier(StatType type, object source)
+        public float GetBaseValue(StatType statType)
         {
-            stats[type].RemoveModifier(source);
+            return GetStat(statType).BaseValue;
+        }
+
+        public void SetBaseValue(StatType statType, float value)
+        {
+            GetStat(statType).SetBaseValue(value);
+        }
+
+        public void AddModifier(StatType statType, IStatModifier modifier)
+        {
+            GetStat(statType).AddModifier(modifier);
+        }
+
+        public void RemoveModifier(StatType statType, IStatModifierSource source)
+        {
+            GetStat(statType).RemoveModifier(source);
+        }
+
+        public void ClearModifiers(StatType statType)
+        {
+            GetStat(statType).ClearModifiers();
+        }
+
+        public bool HasStat(StatType statType)
+        {
+            return stats.ContainsKey(statType);
+        }
+    }
+
+    public static class ModifierFactory
+    {
+        public static AddModifier CreateAddModifier(float amount, StatModifierOrder order, IStatModifierSource source)
+        {
+            return new AddModifier(amount, order, source);
+        }
+
+        public static MultiplyModifier CreateMultiplyModifier(float multiplier, StatModifierOrder order, IStatModifierSource source)
+        {
+            return new MultiplyModifier(multiplier, order, source);
+        }
+
+        public static OverrideModifier CreateOverrideModifier(float value, StatModifierOrder order, IStatModifierSource source)
+        {
+            return new OverrideModifier(value, order, source);
         }
     }
 
