@@ -6,7 +6,8 @@
     }
 
     public interface IStatModifierSource
-    {        
+    {                
+        string DisplayName { get; }
     }
 
     public interface IStatModifier

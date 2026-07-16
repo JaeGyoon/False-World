@@ -27,7 +27,7 @@
         Skill = 7,
     }
 
-    public enum EntityID
+    /*public enum ObjectID
     {
         None = 0,
 
@@ -37,7 +37,9 @@
         Slime = 2001,
         SpinySnail = 2002,
 
-    }
+
+
+    }*/
 
     // AI가 어떤 방식으로 행동하는지
     public enum AIBehaviorType
@@ -65,9 +67,9 @@
         Alert = 3,
     }
 
-    public enum ModifierType
+    public enum StatModifierType
     {
-        Flat = 0,
+        Add = 0,
         Multiply = 1,
         Override = 2,
     }
@@ -105,6 +107,44 @@
 
         Override = 1000
     }
+
+    public enum EquipmentType
+    {
+        Weapon = 0,
+
+        Armor = 1,
+
+        Accessory = 2,
+    }
+
+    public enum EquipmentSlotType
+    {
+        Weapon = 0,
+
+        Helmet = 1,
+
+        Armor_Top = 2,
+        Armor_Bottom = 3,
+
+        Bag = 4,
+
+        Ring = 5,
+        Necklace = 6,
+    }
+
+    public enum EquipmentRarityType
+    {
+        Common = 0,
+
+        Uncommon = 1,
+
+        Rare = 2,
+
+        Epic = 3,
+
+        Legendary = 4,
+    }
+
 }
     
 

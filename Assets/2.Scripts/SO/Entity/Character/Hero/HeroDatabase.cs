@@ -7,11 +7,11 @@ public class HeroDatabase : DatabaseBase
 {
     [SerializeField] private List<HeroDataSO> heros = new List<HeroDataSO>();
 
-    private Dictionary<EntityID, HeroDataSO> heroDict;
+    private Dictionary<string, HeroDataSO> heroDict;
 
     public override void Initialize()
     {
-        heroDict = new Dictionary<EntityID, HeroDataSO>();
+        heroDict = new Dictionary<string, HeroDataSO>();
 
         foreach (HeroDataSO so in heros)
         {
@@ -32,7 +32,7 @@ public class HeroDatabase : DatabaseBase
         Debug.Log("Hero Database Initialize 완료");
     }
 
-    public HeroDataSO Get(EntityID id)
+    public HeroDataSO Get(string id)
     {
         if ( heroDict == null )
         {

@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
-using static UnityEngine.Rendering.DebugUI;
+using System.Linq;
 
 
 namespace FalseWorld
-{        
+{
     [Serializable]
     public class SaveData
     {
@@ -41,13 +41,13 @@ namespace FalseWorld
         public static string SavePath = Path.Combine(Application.persistentDataPath, SaveFileName);
     }
 
-    public static class AddressablesSettings
+   /* public static class AddressablesSettings
     {
         public const string HeroLabel = "Heros";
         public const string EnemyLabel = "Enemies";
         public const string UILabel = "UI";
         public const string EffectLabel = "Effects";
-    }
+    }*/
 
     public sealed class AssetHandle<T> where T : UnityEngine.Object
     {
@@ -65,7 +65,7 @@ namespace FalseWorld
             if (asset == null)
             {
                 Debug.Log($"Asset 오류 : {asset.name}");
-            }                
+            }
 
             RuntimeKey = runtimeKey;
             Asset = asset;
@@ -130,16 +130,16 @@ namespace FalseWorld
 
         public async Task<AssetHandle<T>> LoadAsync<T>(AssetReference reference) where T : UnityEngine.Object
         {
-            if ( reference == null)
+            if (reference == null)
             {
                 Debug.Log($"reference : NULL");
             }
 
             string runtimeKey = reference.RuntimeKey.ToString();
 
-            if(cacheEntry.TryGetValue(runtimeKey, out CacheEntry entry))
+            if (cacheEntry.TryGetValue(runtimeKey, out CacheEntry entry))
             {
-                if ( entry.AssetType != typeof(T))
+                if (entry.AssetType != typeof(T))
                 {
                     Debug.Log($"AssetType이 서로 다름! {entry.AssetType} : {typeof(T)}");
                 }
@@ -149,11 +149,11 @@ namespace FalseWorld
                 return new AssetHandle<T>(runtimeKey, entry.GetAsset<T>());
             }
 
-            var operation = reference.LoadAssetAsync<T>(); 
+            var operation = reference.LoadAssetAsync<T>();
 
             await operation.Task;
 
-            if ( operation.Status != AsyncOperationStatus.Succeeded)
+            if (operation.Status != AsyncOperationStatus.Succeeded)
             {
                 Debug.Log($"에셋 로드 실패 {reference.RuntimeKey}");
             }
@@ -182,7 +182,7 @@ namespace FalseWorld
                 return;
             }
 
-            if ( entry.IsReleased == false)
+            if (entry.IsReleased == false)
             {
                 Addressables.Release(entry.Handle);
 
@@ -229,7 +229,7 @@ namespace FalseWorld
     {
         public TData Data { get; protected set; }
 
-        public virtual void Initialize(TData data) 
+        public virtual void Initialize(TData data)
         {
             Data = data;
         }
@@ -326,7 +326,7 @@ namespace FalseWorld
 
     public sealed class StatValue
     {
-        private readonly List<IStatModifier> modifiers = new List<IStatModifier> ();
+        private readonly List<IStatModifier> modifiers = new List<IStatModifier>();
 
         private bool isDirty = true;
 
@@ -351,16 +351,16 @@ namespace FalseWorld
             BaseValue = baseValue;
 
             cachedValue = baseValue;
-        }   
+        }
 
         private void Recalculate()
         {
             float value = BaseValue;
 
             // Flat 적용 후 Percent 적용
-            foreach(IStatModifier modifier in modifiers)
+            foreach (IStatModifier modifier in modifiers)
             {
-                value = modifier.StatCalculate(value);                
+                value = modifier.StatCalculate(value);
             }
 
             cachedValue = value;
@@ -386,7 +386,7 @@ namespace FalseWorld
 
         public void RemoveModifier(IStatModifierSource source)
         {
-            modifiers.RemoveAll( x => x.Source == source);
+            modifiers.RemoveAll(x => x.Source == source);
 
             isDirty = true;
         }
@@ -407,18 +407,18 @@ namespace FalseWorld
 
     public sealed class RuntimeStat
     {
-        private readonly Dictionary<StatType, StatValue> stats = new Dictionary<StatType, StatValue> ();
+        private readonly Dictionary<StatType, StatValue> stats = new Dictionary<StatType, StatValue>();
 
         public RuntimeStat(StatDataSO data)
         {
-            if ( data == null)
+            if (data == null)
             {
                 Debug.Log("StatDataSO가 null 입니다. 확인 요망");
             }
 
-            foreach(Stat stat in data.Stats)
+            foreach (Stat stat in data.Stats)
             {
-                if ( stats.ContainsKey(stat.Type) )
+                if (stats.ContainsKey(stat.Type))
                 {
                     Debug.Log("스탯 타입 중복 오류");
                 }
@@ -429,7 +429,7 @@ namespace FalseWorld
 
         public StatValue GetStat(StatType statType)
         {
-            if ( stats.TryGetValue(statType, out StatValue statValue) )
+            if (stats.TryGetValue(statType, out StatValue statValue))
             {
                 return statValue;
             }
@@ -460,6 +460,14 @@ namespace FalseWorld
             GetStat(statType).AddModifier(modifier);
         }
 
+        public void RemoveBySource(IStatModifierSource source)
+        {
+            foreach (StatValue statValue in stats.Values)
+            {
+                statValue.RemoveModifier(source);
+            }
+        }
+
         public void RemoveModifier(StatType statType, IStatModifierSource source)
         {
             GetStat(statType).RemoveModifier(source);
@@ -476,23 +484,310 @@ namespace FalseWorld
         }
     }
 
-    public static class ModifierFactory
+    public sealed class StatModifierDefinition
     {
-        public static AddModifier CreateAddModifier(float amount, StatModifierOrder order, IStatModifierSource source)
-        {
-            return new AddModifier(amount, order, source);
-        }
+        [Header("StatType")]
+        [SerializeField] private StatType statType;
 
-        public static MultiplyModifier CreateMultiplyModifier(float multiplier, StatModifierOrder order, IStatModifierSource source)
-        {
-            return new MultiplyModifier(multiplier, order, source);
-        }
+        [Header("Modifier")]
+        [SerializeField] private StatModifierType modifierType;
+        [SerializeField] private float value;
+        [SerializeField] private StatModifierOrder order;
 
-        public static OverrideModifier CreateOverrideModifier(float value, StatModifierOrder order, IStatModifierSource source)
+        public StatType StatType => statType;
+
+        public StatModifierType ModifierType => modifierType;
+
+        public float Value => value;
+
+        public StatModifierOrder Order => order;
+    }
+
+    public static class StatModifierFactory
+    {
+        public static IStatModifier Create(StatModifierDefinition definition, IStatModifierSource source)
         {
-            return new OverrideModifier(value, order, source);
+            return definition.ModifierType switch
+            {
+                StatModifierType.Add =>
+                    new AddModifier(definition.Value, definition.Order, source),
+
+                StatModifierType.Multiply =>
+                    new MultiplyModifier(definition.Value, definition.Order, source),
+
+                StatModifierType.Override =>
+                    new OverrideModifier(definition.Value, definition.Order, source),
+
+                _ => throw new ArgumentOutOfRangeException(nameof(definition.ModifierType))
+            };
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /*public sealed class EquipmentInstance : IStatModifierSource
+    {
+        private readonly List<IStatModifier> modifiers = new List<IStatModifier>();
+
+        public EquipmentDataSO DataSO { get; }
+
+        public string SourceID => DataSO.ID;
+
+        public string DisplayName => DataSO.DisplayName;
+
+        public EquipmentInstance(EquipmentDataSO so)
+        {
+            DataSO = so;
+
+            BuildModifiers();
+        }
+
+        public void BuildModifiers()
+        {
+            modifiers.Clear();
+
+            foreach (StatModifierDefinition definition in DataSO.Modifiers)
+            {
+                IStatModifier modifier = StatModifierFactory.Create(definition, this);
+
+                modifiers.Add(modifier);
+            }
+        }
+    }*/
+
+    public abstract class ItemInstanceBase
+    {
+        public Guid InstanceID { get; }
+
+        public int Count { get; private set; }
+
+        public bool IsLocked {  get; private set; }
+
+        public DateTime AcquiredTime { get; }
+
+        protected ItemInstanceBase(int count)
+        {
+            InstanceID = Guid.NewGuid();
+
+            Count = count;
+
+            AcquiredTime = DateTime.UtcNow;
+        }
+
+        public virtual void SetCount(int count)
+        {
+            Count = count;
+        }
+
+        public virtual void Lock()
+        {
+            IsLocked = true;
+        }
+
+        public virtual void Unlock()
+        {
+            IsLocked = false;
+        }
+    }
+
+    public abstract class ItemInstance<TData> : ItemInstanceBase where TData : ItemDataSO
+    {
+        public TData DataSO { get; }
+
+        protected ItemInstance(TData so, int count = 1) : base(count)
+        {
+            DataSO = so;
+        }
+    }
+
+    public sealed class EquipmentInstance : ItemInstance<EquipmentDataSO>, IStatModifierSource
+    {
+        public int EnhanceLevel { get; private set; }
+
+        public bool IsEquipped { get; internal set; }
+
+        //public string SourceID => InstanceID.ToString();
+
+        public string DisplayName => DataSO.DisplayName;
+               
+
+        public EquipmentInstance(EquipmentDataSO data, int count = 1) : base(data, count)
+        {
+        }
+
+        internal void Equip()
+        {
+            IsEquipped = true;
+        }
+
+        internal void Unequip()
+        {
+            IsEquipped = false;
+        }
+
+        public void Enhance()
+        {
+            EnhanceLevel++;
+        }
+    }
+
+    public sealed class Inventory
+    {
+        private readonly List<ItemInstanceBase> items = new List<ItemInstanceBase> ();
+
+
+        public IReadOnlyList<ItemInstanceBase> Items => items;
+
+        public event Action<ItemInstanceBase> ItemAdded;
+        public event Action<ItemInstanceBase> ItemRemoved;
+
+        public bool Add(ItemInstanceBase item)
+        {
+            if ( item == null)
+            {
+                return false;
+            }
+
+            if(items.Contains(item))
+            {
+                return false;
+            }
+
+            items.Add(item);
+
+            ItemAdded?.Invoke(item);
+
+            return true;
+        }
+
+        public bool Remove(ItemInstanceBase item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+
+            if (items.Remove(item) == false)
+            {
+                return false;
+            }
+
+            ItemRemoved?.Invoke(item);
+
+            return true;
+        }
+
+        public bool Contains(ItemInstanceBase item)
+        {
+            return items.Contains(item);
+        }
+
+        public void Clear()
+        {
+            foreach (ItemInstanceBase item in items)
+            {
+                ItemRemoved?.Invoke(item);
+            }
+
+            items.Clear();
+        }
+
+        public T FindFirst<T>() where T : ItemInstanceBase
+        {
+            return items.OfType<T>().FirstOrDefault();
+        }
+
+        public IEnumerable<T> FindAll<T>() where T : ItemInstanceBase
+        {
+            return items.OfType<T>();
+        }
+    }
+
+
+    public sealed class EquipmentSlot
+    {
+        public EquipmentSlotType SlotType { get; }
+
+        public EquipmentInstance Equipment { get; private set; }
+
+        public bool IsLocked { get; private set; }
+
+        // 가독성을 위해 같은 기능 2개 보유
+        public bool IsEmpty => (Equipment == null);
+
+        public bool HasEquipment => (Equipment != null);
+
+        public EquipmentSlot(EquipmentSlotType slotType)
+        {
+            SlotType = slotType;
+        }
+
+        public bool CanEquip(EquipmentInstance equipment)
+        {
+            if (equipment == null)
+            {
+                return false;
+            }               
+
+            if (IsLocked)
+            {
+                return false;
+            }                
+
+            return equipment.DataSO.SlotType == SlotType;
+        }
+
+        public bool Equip(EquipmentInstance equipment)
+        {
+            if (CanEquip(equipment) == false)
+            {
+                Debug.Log("장비 타입과 슬롯 타입이 다름");
+                return false;
+            }                
+
+            Equipment = equipment;
+
+            equipment.Equip();
+
+            return true;
+        }
+        public EquipmentInstance Unequip()
+        {
+            if (Equipment == null)
+            {
+                return null;
+            }                
+
+            EquipmentInstance equipment = Equipment;
+
+            equipment.Unequip();
+
+            Equipment = null;
+
+            return equipment;
+        }
+        public void Lock()
+        {
+            IsLocked = true;
+        }
+        public void Unlock()
+        {
+            IsLocked = false;
+        }
+    }
+
 
 }
 
