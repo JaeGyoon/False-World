@@ -6,13 +6,18 @@ using UnityEngine.AddressableAssets;
 public class ItemDataSO : DataAsset
 {
     [Header("Item Data")]
-    [SerializeField] private int buyPrice;
+    [SerializeField] private ItemType itemType;
+    [SerializeField] private bool stackable;
     [SerializeField] private int sellPrice;
+    [SerializeField] private int buyPrice;
     [SerializeField] private int maxStack = 1;
     [SerializeField] private int weight;
 
-    public int BuyPrice => buyPrice;
+    public ItemType ItemType => itemType;
+    public bool Stackable => stackable;
     public int SellPrice => sellPrice;
+
+    public int BuyPrice => buyPrice;
     public int MaxStack => maxStack;
     public int Weight => weight;
 }

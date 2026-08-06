@@ -108,6 +108,17 @@
         Override = 1000
     }
 
+    public enum ItemType
+    {
+        Equipment = 0,
+
+        Consumable = 1,
+
+        Material = 2,
+
+        Quest = 3,
+    }
+
     public enum EquipmentType
     {
         Weapon = 0,

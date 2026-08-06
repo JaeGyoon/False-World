@@ -5,6 +5,6 @@ public class LobbyUI : MonoBehaviour
 {
     public async void OnClickGameStart()
     {
-        await SceneLoaderManager.Instance.LoadScene(SceneName.Stage);
+        //await SceneLoaderManager.Instance.LoadScene(SceneName.Stage);
     }
 }

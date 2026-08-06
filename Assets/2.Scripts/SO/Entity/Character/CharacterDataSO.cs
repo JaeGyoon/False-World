@@ -2,9 +2,14 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "CharacterData", menuName = "Scriptable Objects/CharacterData")]
-public class CharacterData : EntityData
+[CreateAssetMenu(fileName = "CharacterDataSO", menuName = "Scriptable Objects/CharacterData")]
+public class CharacterDataSO : EntityData
 {
+    [Header("Stat")]
+    [SerializeField] List<Stat> stats = new List<Stat>();
+
+    public IReadOnlyList<Stat> Stats => stats;
+
     [Header("Animation")]
     [SerializeField] private RuntimeAnimatorController animatorController;
 

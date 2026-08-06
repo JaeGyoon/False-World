@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 [CreateAssetMenu(fileName = "HeroDataSO", menuName = "Scriptable Objects/HeroDataSO")]
-public class HeroDataSO : CharacterData
+public class HeroDataSO : CharacterDataSO
 {
     
 }

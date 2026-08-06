@@ -2,7 +2,7 @@
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "EnemyDataSO", menuName = "Scriptable Objects/EnemyDataSO")]
-public class EnemyDataSO : CharacterData
+public class EnemyDataSO : CharacterDataSO
 {
     [Header("AI")]
     [SerializeField] private EnemyAISettings ai = new EnemyAISettings();

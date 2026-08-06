@@ -5,11 +5,316 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
-using System.Linq;
+using UnityEngine.SceneManagement;
 
 
 namespace FalseWorld
 {
+    /* Bootstrap 관련 클래스
+     * 
+     
+     
+     
+     */
+
+    public sealed class GameCompositionRoot
+    {
+        // Service
+        private ISceneLoader sceneLoader;
+        private IAddressableService addressableService;
+        private ISaveService saveService;
+               
+
+        // Managers
+
+        // Factories
+
+        // GamePlay
+
+        // Modules
+        
+
+        public async Task InitializeAsync()
+        {
+            await CreateServiceAsync();
+
+            await LoadLobbyAsync();
+        }
+
+        private async Task CreateServiceAsync()
+        {
+            sceneLoader = new UnitySceneLoader();
+            addressableService = new AddressableService();
+            saveService = new JsonSaveService();
+
+            await addressableService.InitializeAsync();
+            await saveService.InitializeAsync();
+
+        }
+
+        private async Task LoadLobbyAsync()
+        {
+            await sceneLoader.LoadScene(SceneName.Lobby);
+        }
+    }
+
+    
+
+
+    /* Core System
+     *     
+     
+     */
+
+    /* Service
+     * 
+     * 
+     * 
+     * 
+     */
+
+    public sealed class UnitySceneLoader : ISceneLoader
+    {
+        public async Task LoadScene(SceneName sceneName)
+        {
+            AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName.ToString());
+
+            while (operation.isDone == false)
+            {
+                await Task.Yield();
+            }
+        }
+    }
+
+    public sealed class AddressableService : IAddressableService
+    {
+        public async Task InitializeAsync()
+        {
+            AsyncOperationHandle handle = Addressables.InitializeAsync();
+
+            await handle.Task;
+        }
+
+        public Task<T> LoadAssetAsync<T>(AssetReference reference) where T : UnityEngine.Object
+        {
+            AsyncOperationHandle<T> handle = reference.LoadAssetAsync<T>();
+
+            return handle.Task;
+        }
+
+        public async Task<GameObject> InstantiateAsync(AssetReference reference)
+        {
+            AsyncOperationHandle<GameObject> handle = reference.InstantiateAsync();
+
+            return await handle.Task;
+        }        
+
+        public void Release(object asset)
+        {
+            Addressables.Release(asset);
+        }
+
+        public void ReleaseInstance(GameObject instance)
+        {
+            Addressables.ReleaseInstance(instance);
+        }
+    }
+
+    [SerializeField]
+    public sealed class PlayerSaveData
+    {
+        public string SelectedHeroID;
+
+        public string SelectedStageID;
+    }
+
+    public static class SavePath
+    {
+        public static string PlayerSavePath => Path.Combine(Application.persistentDataPath, "player_save.json");
+    }
+
+    public sealed class JsonSaveService : ISaveService
+    {
+        public PlayerSaveData CurrentSaveData {  get; private set; }
+
+        private bool isDirty;
+
+        public async Task InitializeAsync()
+        {
+            if ( File.Exists(SavePath.PlayerSavePath))
+            {
+                string json = await File.ReadAllTextAsync(SavePath.PlayerSavePath);
+
+                CurrentSaveData = JsonUtility.FromJson<PlayerSaveData>(json);
+            }
+            else
+            {
+                Debug.Log("새로운 플레이어 데이터 생성!");
+
+                CurrentSaveData = new PlayerSaveData();
+
+                await SaveAsync();
+            }
+        }
+
+        public async Task SaveAsync()
+        {
+            if ( (isDirty == false) && File.Exists(SavePath.PlayerSavePath) )
+            {
+                return;
+            }
+
+            string json = JsonUtility.ToJson(CurrentSaveData, true);
+
+            await File.WriteAllTextAsync(SavePath.PlayerSavePath, json);
+
+            isDirty = false;
+        }
+
+        public void MarkDirty()
+        {
+            isDirty = true;
+        }
+
+        public string GetSelectedHero()
+        {
+            return CurrentSaveData.SelectedHeroID;
+        }
+
+        public void SetSelectedHero(string heroID)
+        {
+            if (CurrentSaveData.SelectedHeroID == heroID)
+            {
+                return;
+            }
+
+            CurrentSaveData.SelectedHeroID = heroID;
+
+            isDirty = true;
+        }
+
+        public string GetSelectedStage()
+        {
+            return CurrentSaveData.SelectedStageID;
+        }
+
+        public void SetSelectedStage(string stageID)
+        {
+            if (CurrentSaveData.SelectedStageID == stageID)
+            {
+                return;
+            }
+
+            CurrentSaveData.SelectedStageID = stageID;
+
+            isDirty = true;
+        }
+    }
+
+    /* 로비 파트
+     * 
+     * 
+     * 
+     * 
+     * 
+     */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   /* public sealed class AssetHandle<T> where T : UnityEngine.Object
+    {
+        public AsyncOperationHandle<T> Handle { get; }
+
+        public T Asset { get; }
+
+        public int ReferenceCount { get; private set; }
+
+        public AssetHandle(AsyncOperationHandle<T> handle)
+        {
+            Handle = handle;
+
+            ReferenceCount = 1;
+        }
+
+        public void Retain()
+        {
+            ReferenceCount++;
+        }
+
+        public bool Release()
+        {
+            ReferenceCount--;
+
+            return (ReferenceCount <= 0);
+        }
+    }*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    public sealed class FactoryRegistry
+    {
+        private readonly Dictionary<Type, IRuntimeFactory> factories = new Dictionary<Type, IRuntimeFactory>();
+
+        public void Register<TFactory>(TFactory factory) where TFactory : class, IRuntimeFactory
+        {
+            factories[typeof(TFactory)] = factory;
+        }
+
+        public TFactory Get<TFactory>() where TFactory : class, IRuntimeFactory
+        {
+            if (factories.TryGetValue(typeof(TFactory), out IRuntimeFactory factory))
+            {
+                return factory as TFactory;
+            }
+            else
+            {
+                Debug.Log("타입 오류");
+                return null;
+            }
+
+        }
+    }
+
+    public static class FactoryBootstrap
+    {
+        public static FactoryRegistry Initialize()
+        {
+            FactoryRegistry registry = new FactoryRegistry();
+
+            // Item 팩토리 
+            ItemFactory itemFactory = new ItemFactory();
+            ItemFactoryRegistrar.Register(itemFactory);
+            registry.Register(itemFactory);
+
+
+            return registry;
+        }
+    }
+
+
     [Serializable]
     public class SaveData
     {
@@ -49,28 +354,7 @@ namespace FalseWorld
         public const string EffectLabel = "Effects";
     }*/
 
-    public sealed class AssetHandle<T> where T : UnityEngine.Object
-    {
-        public string RuntimeKey { get; }
-
-        public T Asset { get; }
-
-        internal AssetHandle(string runtimeKey, T asset)
-        {
-            if (string.IsNullOrWhiteSpace(runtimeKey))
-            {
-                Debug.Log($"RuntimeKey 오류 : {runtimeKey}");
-            }
-
-            if (asset == null)
-            {
-                Debug.Log($"Asset 오류 : {asset.name}");
-            }
-
-            RuntimeKey = runtimeKey;
-            Asset = asset;
-        }
-    }
+    
 
     internal sealed class CacheEntry
     {
@@ -122,7 +406,7 @@ namespace FalseWorld
         }
     }
 
-    public sealed class AddressableLoader
+    /*public sealed class AddressableLoader
     {
         private readonly Dictionary<string, CacheEntry> cacheEntry = new Dictionary<string, CacheEntry>();
 
@@ -196,7 +480,7 @@ namespace FalseWorld
         {
             return cacheEntry.ContainsKey(runtimeKey);
         }
-    }
+    }*/
 
     // 아직 구현하진 않고 명시
     [Serializable]
@@ -235,13 +519,40 @@ namespace FalseWorld
         }
     }
 
-    public abstract class Character<TData> : Entity<TData> where TData : CharacterData
+    /*public abstract class Character<TData> : Entity<TData> where TData : CharacterDataSO
     {
+        public CharacterComponents Components { get; protected set; }
 
-    }
+        public RuntimeStat RuntimeStat => Components.RuntimeStat;
 
-    public sealed class Hero : Character<HeroDataSO>
+        public Inventory Inventory => Components.Inventory;
+
+        public Equipment Equipment => Components.Equipment;
+
+        public override void Initialize(TData dataSO)
+        {
+            base.Initialize(dataSO);
+
+            Components = CharacterComponentFactory.CreateCharacter(dataSO);
+
+            Components.Initialize();
+        }
+
+        public override void Release()
+        {
+            Components.Release();
+        }
+    }*/
+
+    /*public sealed class Hero : Character<HeroDataSO>
     {
+        
+        public override void Initialize(HeroDataSO dataSO)
+        {
+            base.Initialize(dataSO);
+
+        }
+
         public override void Release()
         {
             throw new NotImplementedException();
@@ -250,11 +561,25 @@ namespace FalseWorld
 
     public sealed class Enemy : Character<EnemyDataSO>
     {
+        public override void Initialize(EnemyDataSO dataSO)
+        {
+            base.Initialize(dataSO);
+
+        }
+
         public override void Release()
         {
             throw new NotImplementedException();
         }
-    }
+    }*/
+
+    /* 스탯 클래스 모음
+     
+     
+     */
+
+
+
 
     [Serializable]
     public sealed class Stat
@@ -407,24 +732,16 @@ namespace FalseWorld
 
     public sealed class RuntimeStat
     {
-        private readonly Dictionary<StatType, StatValue> stats = new Dictionary<StatType, StatValue>();
+        private readonly Dictionary<StatType, StatValue> stats;
 
-        public RuntimeStat(StatDataSO data)
-        {
-            if (data == null)
+        public RuntimeStat(IReadOnlyDictionary<StatType, StatValue> statDict)
+        {            
+            if (statDict == null )
             {
-                Debug.Log("StatDataSO가 null 입니다. 확인 요망");
+                Debug.Log("statDict : null");
             }
 
-            foreach (Stat stat in data.Stats)
-            {
-                if (stats.ContainsKey(stat.Type))
-                {
-                    Debug.Log("스탯 타입 중복 오류");
-                }
-
-                stats.Add(stat.Type, new StatValue(stat.BaseValue));
-            }
+            stats = new Dictionary<StatType, StatValue>(statDict);
         }
 
         public StatValue GetStat(StatType statType)
@@ -523,197 +840,275 @@ namespace FalseWorld
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /*public sealed class EquipmentInstance : IStatModifierSource
+    public static class RuntimeStatFactory
     {
-        private readonly List<IStatModifier> modifiers = new List<IStatModifier>();
-
-        public EquipmentDataSO DataSO { get; }
-
-        public string SourceID => DataSO.ID;
-
-        public string DisplayName => DataSO.DisplayName;
-
-        public EquipmentInstance(EquipmentDataSO so)
+        public static RuntimeStat CreateRuntimeStat(CharacterDataSO dataSO)
         {
-            DataSO = so;
+            Dictionary<StatType, StatValue> stats = new Dictionary<StatType, StatValue>();
 
-            BuildModifiers();
-        }
-
-        public void BuildModifiers()
-        {
-            modifiers.Clear();
-
-            foreach (StatModifierDefinition definition in DataSO.Modifiers)
+            foreach (Stat stat in dataSO.Stats)
             {
-                IStatModifier modifier = StatModifierFactory.Create(definition, this);
-
-                modifiers.Add(modifier);
+                stats.Add(stat.Type, new StatValue(stat.BaseValue));
             }
+
+            return new RuntimeStat(stats);
         }
-    }*/
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /* Item에 관련된 클래스
+     * 
+     * 
+    */
 
     public abstract class ItemInstanceBase
     {
-        public Guid InstanceID { get; }
+        public Guid Guid { get; }
 
-        public int Count { get; private set; }
+        public abstract ItemDataSO DataSO { get; }
 
-        public bool IsLocked {  get; private set; }
-
-        public DateTime AcquiredTime { get; }
+        public int StackCount { get; private set; }
 
         protected ItemInstanceBase(int count)
         {
-            InstanceID = Guid.NewGuid();
-
-            Count = count;
-
-            AcquiredTime = DateTime.UtcNow;
+            Guid = Guid.NewGuid();
+            StackCount = count;
         }
 
-        public virtual void SetCount(int count)
+        protected ItemInstanceBase(Guid guid, int stackCount)
         {
-            Count = count;
+            Guid = guid;
+            StackCount = stackCount;
         }
 
-        public virtual void Lock()
+        public bool IsFullStack => (StackCount >= DataSO.MaxStack);
+        public bool isEmpty     => (StackCount <= 0);
+
+        public void AddStack(int amount)
         {
-            IsLocked = true;
+            if ( DataSO.Stackable == false)
+            {
+                Debug.Log("Stack 불가 Item 입니다.");
+                return;
+            }
+
+            StackCount = Math.Min(DataSO.MaxStack, StackCount + amount);
         }
 
-        public virtual void Unlock()
+        public void RemoveStack(int amount)
         {
-            IsLocked = false;
+            if (DataSO.Stackable == false)
+            {
+                Debug.Log("Stack 불가 Item 입니다.");
+                return;
+            }
+
+            StackCount = Math.Max(0, StackCount - amount);
         }
+
     }
 
     public abstract class ItemInstance<TData> : ItemInstanceBase where TData : ItemDataSO
     {
-        public TData DataSO { get; }
+        private readonly TData definition;
 
-        protected ItemInstance(TData so, int count = 1) : base(count)
+        public TData Definition => definition;
+
+        public override ItemDataSO DataSO => definition;
+
+        /*public DateTime AcquiredTime { get; }*/
+
+        protected ItemInstance(TData dataSO, int count = 1) : base(count)
         {
-            DataSO = so;
+            definition = dataSO;
+        }
+
+        // 로드 기능을 사용할 때 기존 Guid 복원
+        protected ItemInstance(TData dataSO, int count, Guid guid) : base(guid, count)
+        {
+            definition = dataSO;
         }
     }
 
-    public sealed class EquipmentInstance : ItemInstance<EquipmentDataSO>, IStatModifierSource
+    public sealed class InventorySlot
     {
-        public int EnhanceLevel { get; private set; }
+        public int Index { get; }
 
-        public bool IsEquipped { get; internal set; }
+        public ItemInstanceBase Item { get; private set; }
 
-        //public string SourceID => InstanceID.ToString();
+        public bool IsEmpty => (Item == null);
 
-        public string DisplayName => DataSO.DisplayName;
-               
-
-        public EquipmentInstance(EquipmentDataSO data, int count = 1) : base(data, count)
+        public InventorySlot(int index)
         {
+            Index = index;
         }
 
-        internal void Equip()
+        /*internal void SetItem(ItemInstanceBase item)*/
+        private void SetItem(ItemInstanceBase item)
         {
-            IsEquipped = true;
+            Item = item;
         }
 
-        internal void Unequip()
+        public ItemInstanceBase RemoveItem()
         {
-            IsEquipped = false;
-        }
+            ItemInstanceBase item = Item;
 
-        public void Enhance()
-        {
-            EnhanceLevel++;
+            Item = null;
+
+            return item;
         }
     }
 
     public sealed class Inventory
     {
-        private readonly List<ItemInstanceBase> items = new List<ItemInstanceBase> ();
+        private readonly List<InventorySlot> slots;
 
+        public IReadOnlyList<InventorySlot> Slots => slots;
 
-        public IReadOnlyList<ItemInstanceBase> Items => items;
+        public int Capacity => slots.Count;
+
 
         public event Action<ItemInstanceBase> ItemAdded;
         public event Action<ItemInstanceBase> ItemRemoved;
 
-        public bool Add(ItemInstanceBase item)
+        public Inventory(int capacity)
         {
-            if ( item == null)
+            if (capacity <= 0)
             {
-                return false;
+                Debug.Log("인벤토리 크기가 0입니다.");
             }
 
-            if(items.Contains(item))
+            slots = new List<InventorySlot>();
+
+            for (int i = 0; i < capacity; i++)
             {
-                return false;
+                slots.Add(new InventorySlot(i));
+            }
+        }
+
+        public InventorySlot GetSlot(int index)
+        {
+            return slots[index];
+        }
+
+        public bool ContainsItem(ItemInstanceBase item)
+        {
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot.Item == item)
+                {
+                    return true;
+                }
             }
 
-            items.Add(item);
-
-            ItemAdded?.Invoke(item);
-
-            return true;
+            return false;
         }
 
-        public bool Remove(ItemInstanceBase item)
+        public int FindEmptySlot()
         {
-            if (item == null)
+            foreach (InventorySlot slot in slots)
             {
-                return false;
+                if (slot.IsEmpty)
+                {
+                    return slot.Index;
+                }                    
             }
 
-            if (items.Remove(item) == false)
+            // 매직 넘버 사용? 다른 변경 방법 
+            return -1;
+        }
+
+        public InventorySlot FindSlot(ItemInstanceBase item)
+        {
+            foreach (InventorySlot slot in slots)
             {
-                return false;
+                if (slot.Item == item)
+                {
+                    return slot;
+                }                    
             }
 
-            ItemRemoved?.Invoke(item);
-
-            return true;
-        }
-
-        public bool Contains(ItemInstanceBase item)
-        {
-            return items.Contains(item);
-        }
-
-        public void Clear()
-        {
-            foreach (ItemInstanceBase item in items)
-            {
-                ItemRemoved?.Invoke(item);
-            }
-
-            items.Clear();
-        }
-
-        public T FindFirst<T>() where T : ItemInstanceBase
-        {
-            return items.OfType<T>().FirstOrDefault();
-        }
-
-        public IEnumerable<T> FindAll<T>() where T : ItemInstanceBase
-        {
-            return items.OfType<T>();
+            return null;
         }
     }
+
+    public sealed class ItemFactory : IRuntimeFactory
+    {
+        private readonly Dictionary<Type, Func<ItemDataSO, ItemInstanceBase>> createMethods = new();
+
+        public void Register<TData>(Func<TData, ItemInstanceBase> creator) where TData : ItemDataSO
+        {
+            createMethods[typeof(TData)] = (data => creator((TData)data));
+        }
+
+        public ItemInstanceBase Create(ItemDataSO dataSO)
+        {
+            if ( dataSO == null)
+            {
+                Debug.Log("data SO가 null 입니다.");
+                return null;
+            }
+
+            if (createMethods.TryGetValue(dataSO.GetType(), out Func<ItemDataSO, ItemInstanceBase> createMethod))
+            {
+                return createMethod(dataSO);
+            }
+            else
+            {
+                Debug.Log("data SO 타입 오류");
+                return null;
+            }
+        }
+
+        public T_item Create<T_item>(ItemDataSO so) where T_item : ItemInstanceBase
+        {
+            return (T_item)Create(so);
+        }
+    }
+    public static class ItemFactoryRegistrar
+    {
+        public static void Register(ItemFactory factory)
+        {
+            /*factory.Register<EquipmentDataSO>(
+                data => new EquipmentInstance(data));*/
+
+            /*factory.Register<ConsumableData>(
+                data => new ConsumableInstance(data));
+
+            factory.Register<MaterialData>(
+                data => new MaterialInstance(data));*/
+        }
+    }
+
+
+    /*public sealed class EquipmentInstance : ItemInstance<EquipmentDataSO>
+    {
+        public int EnhanceLevel { get; private set; }                      
+
+        public EquipmentInstance(EquipmentDataSO data) : base(data)
+        {
+
+        }
+
+        public EquipmentInstance(EquipmentDataSO so, int count, Guid guid, int enhanceLevel) : base (so, count, guid)
+        {
+            EnhanceLevel = enhanceLevel;
+        }
+
+    }
+
+    
 
 
     public sealed class EquipmentSlot
@@ -787,6 +1182,141 @@ namespace FalseWorld
             IsLocked = false;
         }
     }
+
+    public sealed class Equipment
+    {
+        private readonly Dictionary<EquipmentSlotType, EquipmentSlot> slotDict;
+
+        private readonly Inventory inventory;
+
+        private readonly RuntimeStat runtimeStat;
+
+        public  Equipment(Inventory inven, RuntimeStat stat)
+        {
+            inventory = inven;
+
+            runtimeStat = stat;
+
+            slotDict = new Dictionary<EquipmentSlotType, EquipmentSlot>();
+
+            foreach (EquipmentSlotType slotType in Enum.GetValues(typeof(EquipmentSlotType)))
+            {
+                slotDict.Add(slotType, new EquipmentSlot(slotType) );
+            }
+        }
+
+        public bool Equip(EquipmentInstance equipment)
+        {
+            EquipmentSlot slot = slotDict[equipment.DataSO.SlotType];
+
+            if (slot.IsEmpty == false)
+            {
+                return false;
+            }
+
+            if (inventory.Remove(equipment))
+            {
+                return false;
+            }
+
+            slot.Equip(equipment);
+
+            ApplyModifiers(equipment);
+
+            return true;
+        }
+
+        private void ApplyModifiers(EquipmentInstance equipment)
+        {
+            foreach (IStatModifier modifier in equipment.modi)
+            {
+                _runtimeStat.AddModifier(
+                    modifier.StatType,
+                    modifier);
+            }
+        }
+    } */
+
+    /* Character 에 관련된 클래스 
+     CharacterComponents : 캐릭터들이 공통으로 가지고 있는 Runtime 객체들 보관
+
+     
+    */
+
+    /*public sealed class CharacterComponents
+    {
+        public RuntimeStat RuntimeStat { get; }
+         
+        public Inventory Inventory { get; }
+
+        public Equipment Equipment { get; }
+
+        public CharacterComponents(RuntimeStat runtimeStat, Inventory inventory, Equipment equipment)
+        {
+            RuntimeStat = runtimeStat;
+            Inventory = inventory;
+            Equipment = equipment;
+        }
+
+        public void Initialize()
+        {
+
+        }
+
+        public void Release()
+        {
+
+        }
+
+    }
+
+    public static class CharacterComponentFactory
+    {
+        public static CharacterComponents CreateCharacter(CharacterDataSO dataSO)
+        {
+            RuntimeStat runtimeStat = RuntimeStatFactory.CreateRuntimeStat(dataSO);
+
+            Inventory inventory = new Inventory();
+
+            Equipment equipment = new Equipment(inventory, runtimeStat);
+
+            return new CharacterComponents(runtimeStat, inventory, equipment);
+        }
+    }*/
+
+
+
+    /*  Hero 에 관련된 클래스 
+     *  
+     *     
+     */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 }
